@@ -60,8 +60,9 @@ public final class ImplInjector {
     private static void inject0(Class<?> interfaceClass, String fieldName, Object instance) throws NoSuchFieldException {
         Field f = interfaceClass.getDeclaredField(fieldName);
         f.setAccessible(true);
+        Object base = unsafe.staticFieldBase(f);
         long off = unsafe.staticFieldOffset(f);
-        unsafe.putObject(interfaceClass, off, instance);
+        unsafe.putObject(base, off, instance);
     }
 
     private static final Unsafe unsafe;
