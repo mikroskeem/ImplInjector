@@ -28,7 +28,10 @@ package eu.mikroskeem.implinjector;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import sun.misc.Unsafe;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Objects;
 
 /**
@@ -51,8 +54,14 @@ public final class ImplInjector {
         Objects.requireNonNull(instance, "Instance should not be null");
 
         try {
-            inject0(interfaceClass, fieldName, instance);
-        } catch (NoSuchFieldException e) {
+            if (modifiersVarHandle != null) {
+                inject1(interfaceClass, fieldName, instance);
+            } else if (unsafe != null) {
+                inject0(interfaceClass, fieldName, instance);
+            } else {
+                throw new RuntimeException("Unable to find a suitable way for injecting implementation into the interface");
+            }
+        } catch (IllegalAccessException | NoSuchFieldException e) {
             unsafe.throwException(e);
         }
     }
@@ -65,7 +74,16 @@ public final class ImplInjector {
         unsafe.putObject(base, off, instance);
     }
 
+    private static void inject1(Class<?> interfaceClass, String fieldName, Object instance) throws IllegalAccessException, NoSuchFieldException {
+        Field f = interfaceClass.getDeclaredField(fieldName);
+        f.setAccessible(true);
+        ((VarHandle) modifiersVarHandle).set(f, f.getModifiers() & ~Modifier.FINAL);
+        f.set(null, instance);
+    }
+
     private static final Unsafe unsafe;
+    private static final Object/*VarHandle*/ modifiersVarHandle;
+
     private static Unsafe initUnsafeField() {
         try {
             Field theUnsafeField = Unsafe.class.getDeclaredField("theUnsafe");
@@ -75,7 +93,17 @@ public final class ImplInjector {
         return null;
     }
 
+    private static Object initModifiersVarHandle() {
+        try {
+            VarHandle.class.getName(); // Makes this method fail-fast on JDK 8
+            return MethodHandles.privateLookupIn(Field.class, MethodHandles.lookup())
+                    .findVarHandle(Field.class, "modifiers", int.class);
+        } catch (IllegalAccessException | NoClassDefFoundError | NoSuchFieldException ignored) {}
+        return null;
+    }
+
     static {
         unsafe = initUnsafeField();
+        modifiersVarHandle = initModifiersVarHandle();
     }
 }
