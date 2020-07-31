@@ -101,12 +101,9 @@ public final class ImplInjector {
         return null;
     }
 
-    private static void sneakyThrow(Throwable ex) {
-        ImplInjector.<RuntimeException>sneakyThrowInner(ex);
-    }
-
-    private static <T extends Throwable> T sneakyThrowInner(Throwable ex) throws T {
-        throw (T) ex;
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> RuntimeException sneakyThrow(Throwable t) throws T {
+        throw (T) t;
     }
 
     static {
