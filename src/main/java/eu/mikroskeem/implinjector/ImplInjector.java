@@ -25,7 +25,6 @@
 
 package eu.mikroskeem.implinjector;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
 import sun.misc.Unsafe;
 
 import java.lang.invoke.MethodHandles;
@@ -48,7 +47,7 @@ public final class ImplInjector {
      * @param instance Interface implementation instance
      * @param <T> Interface type
      */
-    public static <T> void inject(Class<T> interfaceClass, @NonNull String fieldName, @NonNull T instance) {
+    public static <T> void inject(Class<T> interfaceClass, String fieldName, T instance) {
         Objects.requireNonNull(interfaceClass, "Interface class shouldn't be null");
         Objects.requireNonNull(fieldName, "Field name should not be null");
         Objects.requireNonNull(instance, "Instance should not be null");
@@ -62,7 +61,7 @@ public final class ImplInjector {
                 throw new RuntimeException("Unable to find a suitable way for injecting implementation into the interface");
             }
         } catch (IllegalAccessException | NoSuchFieldException e) {
-            unsafe.throwException(e);
+            sneakyThrow(e);
         }
     }
 
@@ -82,7 +81,7 @@ public final class ImplInjector {
     }
 
     private static final Unsafe unsafe;
-    private static final Object/*VarHandle*/ modifiersVarHandle;
+    private static final Object /* VarHandle */ modifiersVarHandle;
 
     private static Unsafe initUnsafeField() {
         try {
@@ -100,6 +99,14 @@ public final class ImplInjector {
                     .findVarHandle(Field.class, "modifiers", int.class);
         } catch (IllegalAccessException | NoClassDefFoundError | NoSuchFieldException ignored) {}
         return null;
+    }
+
+    private static void sneakyThrow(Throwable ex) {
+        ImplInjector.<RuntimeException>sneakyThrowInner(ex);
+    }
+
+    private static <T extends Throwable> T sneakyThrowInner(Throwable ex) throws T {
+        throw (T) ex;
     }
 
     static {
